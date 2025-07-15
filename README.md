@@ -5,7 +5,7 @@
 
 **Block Walkers** is a simple, self-contained 3D web game designed to be a standardized test bed for evaluating the "agentic coding" capabilities of different AI models. The project is intentionally kept simple, making it the perfect "quilt" or sandbox for giving an AI a task—like adding a new feature or fixing a bug—and observing its performance.
 
-This project has a unique origin story. It was initially bootstrapped by the **Kimi K2** model, but the resulting code was non-functional. The project was then debugged, refactored, and completed using **Gemini**, turning a failed attempt into a valuable tool for the community.
+This project was initially bootstrapped by the **Kimi K2** model, but the resulting code was non-functional. The project was then debugged, refactored, and completed using **Gemini**.
 
 ## Core Technologies
 
