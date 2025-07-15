@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block Walkers - Low-Poly 3D Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background: #111; min-height: 100vh; overflow: hidden; color: #fff; }
+        #gameContainer { position: relative; width: 100vw; height: 100vh; }
+        #gameCanvas { width: 100%; height: 100%; display: block; }
+        #mainMenu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.5s ease; }
+        #mainMenu.hidden { opacity: 0; pointer-events: none; }
+        .game-title { font-size: 4rem; font-weight: bold; margin-bottom: 2rem; text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); letter-spacing: 0.1em; background: linear-gradient(45deg, #fff, #e0e0e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .menu-buttons { display: flex; flex-direction: column; gap: 1.5rem; align-items: center; }
+        .menu-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 1rem 3rem; font-size: 1.2rem; font-weight: bold; color: white; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; min-width: 200px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .menu-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        .menu-button:active { transform: translateY(0); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); }
+
+        /* Loading & UI */
+        .model-loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); padding: 20px; border-radius: 10px; display: none; flex-direction: column; align-items: center; gap: 10px; z-index: 2000; }
+        .loader { width: 50px; height: 50px; border: 3px solid rgba(255, 255, 255, 0.3); border-top: 3px solid #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .controls-info { position: absolute; bottom: 10px; left: 10px; z-index: 100; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 5px; font-size: 14px; display: none; }
+
+        /* Conversation UI */
+        .conversation-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 1500; display: none; flex-direction: column; justify-content: flex-end; align-items: center; padding: 20px; }
+        .conversation-container { width: 100%; max-width: 600px; max-height: 70vh; background: rgba(30, 30, 40, 0.95); border-radius: 15px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .conversation-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding-bottom: 10px; }
+        .npc-info { display: flex; align-items: center; gap: 10px; }
+        .npc-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
+        .conversation-messages { flex: 1; overflow-y: auto; max-height: 300px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .conversation-input { display: flex; gap: 10px; }
+        .conversation-input input { flex: 1; padding: 10px; border: none; border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 14px; }
+        .conversation-input input::placeholder { color: rgba(255, 255, 255, 0.7); }
+        .conversation-input button { padding: 10px 20px; border: none; border-radius: 5px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; cursor: pointer; font-weight: bold; }
+        .close-conversation { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+        .message { padding: 10px; border-radius: 10px; max-width: 80%; word-wrap: break-word; }
+        .player-message { background: rgba(102, 126, 234, 0.3); align-self: flex-end; }
+        .npc-message { background: rgba(118, 75, 162, 0.3); align-self: flex-start; }
+
+        /* Settings Panel */
+        .settings-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 1500; display: none; justify-content: center; align-items: center; }
+        .settings-container { width: 100%; max-width: 500px; background: rgba(30, 30, 40, 0.95); border-radius: 15px; padding: 30px; display: flex; flex-direction: column; gap: 20px; }
+        .settings-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding-bottom: 15px; }
+        .settings-section { display: flex; flex-direction: column; gap: 15px; }
+        .settings-section h3 { margin-bottom: 10px; }
+        .prompt-input { width: 100%; min-height: 80px; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(0, 0, 0, 0.2); color: white; font-family: monospace; font-size: 13px; resize: vertical; }
+        .settings-button { padding: 10px 20px; border: none; border-radius: 5px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="mainMenu">
+            <h1 class="game-title">BLOCK WALKERS</h1>
+            <div class="menu-buttons">
+                <button id="startButton" class="menu-button">START</button>
+                <button id="settingsButton" class="menu-button">SETTINGS</button>
+            </div>
+        </div>
+
+        <div class="controls-info" id="controlsInfo">
+            <strong>Controls:</strong><br>
+            WASD - Move | Mouse - Look | E - Interact | ESC - End Conversation
+        </div>
+    </div>
+
+    <div id="modelLoading" class="model-loading">
+        <div class="loader"></div>
+        <span>Loading AI Model...</span>
+        <p id="modelProgress" style="font-size: 12px; color: #ccc; margin-top: 5px; min-height: 1em;"></p>
+    </div>
+
+    <div id="conversationOverlay" class="conversation-overlay">
+        <div class="conversation-container">
+            <div class="conversation-header">
+                <div class="npc-info">
+                    <div class="npc-avatar" id="npcAvatar">?</div>
+                    <h3 id="npcName">Unknown NPC</h3>
+                </div>
+                <button id="closeConversationButton" class="close-conversation">×</button>
+            </div>
+            <div class="conversation-messages" id="conversationMessages"></div>
+            <div class="conversation-input">
+                <input type="text" id="conversationInput" placeholder="Type your message..." maxlength="200">
+                <button id="sendMessageButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsPanel" class="settings-panel">
+        <div class="settings-container">
+            <div class="settings-header">
+                <h2>AI Settings</h2>
+                <button id="closeSettingsButton" class="close-conversation">×</button>
+            </div>
+            <div class="settings-section">
+                <h3>System Prompts</h3>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 10px;">
+                    These prompts guide how NPCs respond. One is randomly selected for each conversation.
+                </p>
+                <div>
+                    <label>Prompt 1:</label>
+                    <textarea class="prompt-input" id="prompt1"></textarea>
+                </div>
+                <div>
+                    <label>Prompt 2:</label>
+                    <textarea class="prompt-input" id="prompt2"></textarea>
+                </div>
+                <div>
+                    <label>Prompt 3:</label>
+                    <textarea class="prompt-input" id="prompt3"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button id="saveSettingsButton" class="settings-button">Save Settings</button>
+                    <button id="resetSettingsButton" class="settings-button">Reset Defaults</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script> 
+    <script type="module">
+        import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js');
+    </script>
+
+    <script type="module" src="./utils.js"></script>
+    <script type="module" src="./city.js"></script>
+    <script type="module" src="./player.js"></script>
+    <script type="module" src="./npc.js"></script>
+    <script type="module" src="./chat.js"></script>
+    <script type="module" src="./mini-panel.js"></script>
+    <script type="module" src="./game.js"></script>
+</body>
+</html>
